@@ -80,6 +80,7 @@ Used for creating, managing, and searching issues and pull requests.
 |------|-------|
 | Connection | Remote (recommended) |
 | Authentication | GitHub PAT with the required scopes |
+| Authorization format | `Bearer YOUR_GITHUB_PAT` |
 
 **Common tools**: `issue_create`, `issue_update`, `issue_list`, `issue_search`, `issue_comment`, `create_pull_request`
 
@@ -106,7 +107,17 @@ Used for creating, managing, and searching issues and pull requests.
 
 If you plan to use `repo`-level operations, make sure the PAT includes the necessary repository permissions.
 
-**Security**: treat the PAT like a password—do not commit it, do not paste it into prompts, and rotate it if exposed. Prefer least-privilege tokens (e.g. fine-grained) scoped to the repos you need.
+**Security**: treat the PAT like a password--do not commit it, do not paste it into prompts, and rotate it if exposed. Prefer least-privilege tokens (e.g. fine-grained) scoped to the repos you need.
+
+**Local check**
+
+```powershell
+$config = Get-Content -Raw .\.cursor\mcp.json | ConvertFrom-Json
+$config.mcpServers.github.url
+$config.mcpServers.github.headers.Authorization.StartsWith("Bearer ")
+```
+
+The final command should return `True`. Do not print or commit the token value.
 
 **Rule file**: `.cursor/rules/mcp/github-rules.mdc`
 
@@ -141,7 +152,7 @@ Converts many document formats (PDF, Office, HTML, images, and more) to Markdown
 |------|-------|
 | Connection | Local (STDIO recommended) |
 | Python | 3.10 or later |
-| Tool | `convert_to_markdown(uri)` — accepts `http:`, `https:`, `file:`, or `data:` URIs |
+| Tool | `convert_to_markdown(uri)` accepts `http:`, `https:`, `file:`, or `data:` URIs |
 
 **Installation**
 
@@ -159,7 +170,15 @@ python3 -m venv .cursor/venv-markitdown
 .cursor/venv-markitdown/bin/pip install -U pip markitdown-mcp
 ```
 
-The venv directory is gitignored. Point `mcp.json` at `.cursor/venv-markitdown/bin/markitdown-mcp`, or use `.cursor/scripts/markitdown-mcp.sh`, which prefers that venv and falls back to `markitdown-mcp` on your `PATH`.
+On Windows, the PowerShell wrapper expects a repository-local `.venv-markitdown` directory:
+
+```powershell
+cd path\to\Cursor
+py -m venv .venv-markitdown
+.\.venv-markitdown\Scripts\python.exe -m pip install -U pip markitdown-mcp
+```
+
+Both venv directories are gitignored. Point `mcp.json` at the venv's `markitdown-mcp` executable, or use one of the wrapper scripts in `.cursor/scripts/`.
 
 **`mcp.json` example** (merge with your existing `mcpServers`; do not commit secrets):
 
@@ -174,7 +193,7 @@ The venv directory is gitignored. Point `mcp.json` at `.cursor/venv-markitdown/b
 }
 ```
 
-With the wrapper script (use an **absolute** path to the script on your machine):
+With the bash wrapper script (use an **absolute** path to the script on your machine):
 
 ```json
 {
@@ -187,7 +206,26 @@ With the wrapper script (use an **absolute** path to the script on your machine)
 }
 ```
 
-**HTTP / SSE (optional)** — alternative to STDIO; default bind is localhost (e.g. port `3001`):
+With the PowerShell wrapper script on Windows, use the absolute script path in `.cursor/mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "markitdown": {
+      "command": "powershell",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "D:\\Git\\Cursor\\.cursor\\scripts\\markitdown-mcp.ps1"
+      ]
+    }
+  }
+}
+```
+
+**HTTP / SSE (optional)** - alternative to STDIO; default bind is localhost (e.g. port `3001`):
 
 ```bash
 markitdown-mcp --http --host 127.0.0.1 --port 3001
@@ -202,6 +240,8 @@ This does not conflict with draw.io on ports 3000 / 3333. Prefer STDIO unless yo
 **CLI (reference)**: you can also run `markitdown <file> -o out.md` from the same environment; MCP is the primary integration for Cursor agents.
 
 **Docker**: the upstream README documents a Docker workflow for MCP; use that if you prefer container isolation.
+
+**Audio note**: audio conversion may require `ffmpeg` or `avconv` to be installed separately on the system.
 
 ---
 
@@ -249,6 +289,22 @@ Uses `bash`. On Windows, use WSL or Git Bash.
 
 **Referenced from `mcp.json`**: set `command` to the **absolute** path of this script.
 
+---
+
+### markitdown-mcp.ps1
+
+**Path**: `.cursor/scripts/markitdown-mcp.ps1`
+
+**Purpose**: Starts `markitdown-mcp` from the local `.venv-markitdown` virtual environment.
+
+It performs the following steps:
+
+1. Resolves the repository root from the script location
+2. Checks that `.venv-markitdown\Scripts\markitdown-mcp.exe` exists
+3. Starts the MarkItDown MCP server over STDIO
+
+**Referenced from `mcp.json`**: use this script in the MarkItDown `command` field in `.cursor/mcp.json`.
+
 See `.cursor/scripts/README.md` for the script index.
 
 ---
@@ -270,7 +326,8 @@ See `.cursor/scripts/README.md` for the script index.
 1. Fully quit and restart Cursor.
 2. Check status in `Cursor Settings > MCP`.
 3. Refresh the tool list.
-4. If the issue is with GitHub MCP, review the PAT configuration in `.cursor/mcp.json`.
+4. If the issue is with GitHub MCP, review the PAT configuration in `.cursor/mcp.json` and verify that `Authorization` starts with `Bearer `.
+5. If the issue is with MarkItDown MCP, verify the expected venv exists and the relevant wrapper can find `markitdown-mcp`.
 
 ### draw.io returns errors
 
@@ -297,8 +354,15 @@ If you use `nvm`, run these commands in a fresh terminal session.
    which markitdown-mcp
    markitdown-mcp --help
    ```
-2. **If `command not found`**: install with `pip install markitdown-mcp` or create `.cursor/venv-markitdown` as above and either use the venv’s full path in `mcp.json` or the `markitdown-mcp.sh` wrapper.
-3. **If Cursor still cannot find it**: put the venv `bin` directory on `PATH` via the `env` field in `mcp.json`, or use an absolute `command` path (same pattern as Node/`nvm` for draw.io).
+2. **On Windows, verify the local venv commands**
+   ```powershell
+   & .\.venv-markitdown\Scripts\markitdown.exe --help
+   & .\.venv-markitdown\Scripts\markitdown-mcp.exe --help
+   ```
+3. **If `command not found` or either PowerShell command fails**: reinstall with `pip install markitdown-mcp`, recreate the relevant venv, or use the wrapper script that matches your environment.
+4. **If Cursor still cannot find it**: put the venv directory on `PATH` via the `env` field in `mcp.json`, or use an absolute `command` path.
+
+If you see an `ffmpeg` or `avconv` warning, MarkItDown is installed but audio conversion may not work until one of those tools is installed.
 
 ---
 

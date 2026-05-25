@@ -10,6 +10,7 @@ Thumbs.db
 # Environment / Secrets
 .env
 .env.*
+.venv-markitdown/
 .cursor/mcp.json
 .cursor/venv-markitdown/
 
