@@ -78,6 +78,7 @@ Used for creating, managing, and searching issues and pull requests.
 |------|-------|
 | Connection | Remote (recommended) |
 | Authentication | GitHub PAT with the required scopes |
+| Authorization format | `Bearer YOUR_GITHUB_PAT` |
 
 **Common tools**: `issue_create`, `issue_update`, `issue_list`, `issue_search`, `issue_comment`, `create_pull_request`
 
@@ -104,6 +105,16 @@ Used for creating, managing, and searching issues and pull requests.
 
 If you plan to use `repo`-level operations, make sure the PAT includes the necessary repository permissions.
 
+**Local check**
+
+```powershell
+$config = Get-Content -Raw .\.cursor\mcp.json | ConvertFrom-Json
+$config.mcpServers.github.url
+$config.mcpServers.github.headers.Authorization.StartsWith("Bearer ")
+```
+
+The final command should return `True`. Do not print or commit the token value.
+
 ---
 
 ### 3. draw.io
@@ -124,6 +135,31 @@ Lets the AI create and edit diagrams in draw.io (diagrams.net).
 3. Ask the agent to create or edit diagrams.
 
 **Rule file**: `.cursor/rules/MCP/drawio-rules.mdc`
+
+---
+
+### 4. MarkItDown
+
+Converts documents and other supported files to Markdown for LLM-friendly analysis.
+
+| Item | Value |
+|------|-------|
+| Connection | Local, via PowerShell wrapper script |
+| Python | 3.10 or later |
+| Virtual environment | `.venv-markitdown` |
+| Tool | `convert_to_markdown(uri)` |
+
+**Usage**
+
+1. Restart Cursor so MCP loads the server.
+2. Ask the agent to convert a local `file:` URI, `http:`, `https:`, or `data:` URI to Markdown.
+3. For command-line use, run `markitdown <input-file> -o <output-file>` from `.venv-markitdown`.
+
+**Referenced from `mcp.json`**: use `.cursor/scripts/markitdown-mcp.ps1` in the MarkItDown `command` field.
+
+**Security note**: MarkItDown runs with the privileges of the current user. Only convert trusted local files or trusted URIs, and keep HTTP/SSE transports bound to `127.0.0.1` if you enable them manually.
+
+**Audio note**: Audio conversion may require `ffmpeg` or `avconv` to be installed separately on the system.
 
 ---
 
@@ -161,6 +197,20 @@ It performs the following steps:
 
 See `.cursor/scripts/README.md` for the script index.
 
+### markitdown-mcp.ps1
+
+**Path**: `.cursor/scripts/markitdown-mcp.ps1`
+
+**Purpose**: Starts `markitdown-mcp` from the local `.venv-markitdown` virtual environment.
+
+It performs the following steps:
+
+1. Resolves the repository root from the script location
+2. Checks that `.venv-markitdown\Scripts\markitdown-mcp.exe` exists
+3. Starts the MarkItDown MCP server over STDIO
+
+**Referenced from `mcp.json`**: use this script in the MarkItDown `command` field in `.cursor/mcp.json`.
+
 ---
 
 ## Environment
@@ -168,6 +218,7 @@ See `.cursor/scripts/README.md` for the script index.
 | Item | Value |
 |------|-------|
 | Node.js | v20 or later (LTS recommended) |
+| Python | 3.10 or later for MarkItDown |
 | Version management | `nvm` recommended |
 
 ---
@@ -179,7 +230,8 @@ See `.cursor/scripts/README.md` for the script index.
 1. Fully quit and restart Cursor.
 2. Check status in `Cursor Settings > MCP`.
 3. Refresh the tool list.
-4. If the issue is with GitHub MCP, review the PAT configuration in `.cursor/mcp.json`.
+4. If the issue is with GitHub MCP, review the PAT configuration in `.cursor/mcp.json` and verify that `Authorization` starts with `Bearer `.
+5. If the issue is with MarkItDown MCP, verify `.venv-markitdown` exists and `markitdown-mcp.ps1` can find `markitdown-mcp.exe`.
 
 ### draw.io returns errors
 
@@ -199,6 +251,17 @@ npx -v
 
 If you use `nvm`, run these commands in a fresh terminal session.
 
+### MarkItDown command is not found
+
+```powershell
+& .\.venv-markitdown\Scripts\markitdown.exe --help
+& .\.venv-markitdown\Scripts\markitdown-mcp.exe --help
+```
+
+If either command fails, recreate `.venv-markitdown` and reinstall `markitdown[all]` and `markitdown-mcp`.
+
+If you see an `ffmpeg` or `avconv` warning, MarkItDown is installed but audio conversion may not work until one of those tools is installed.
+
 ---
 
 ## References
@@ -206,3 +269,4 @@ If you use `nvm`, run these commands in a fresh terminal session.
 - [Context7](https://context7.com/docs/overview)
 - [modelcontextprotocol/servers](https://github.com/modelcontextprotocol/servers)
 - [lgazo/drawio-mcp-server](https://github.com/lgazo/drawio-mcp-server)
+- [microsoft/markitdown](https://github.com/microsoft/markitdown)
