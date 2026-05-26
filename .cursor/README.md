@@ -1,5 +1,7 @@
 # .cursor Index
 
+Languages: [English](README.md) | [日本語](README.ja.md)
+
 Entry point for rules, documents, and helper scripts under `.cursor/`.
 
 ## Workspace

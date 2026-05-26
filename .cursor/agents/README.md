@@ -1,5 +1,7 @@
 # Agents
 
+Languages: [English](README.md) | [日本語](README.ja.md)
+
 `.cursor/agents/` is the place for workspace-specific agent definitions and supporting files.
 
 ## Purpose

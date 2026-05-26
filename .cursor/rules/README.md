@@ -1,5 +1,7 @@
 # Rules
 
+Languages: [English](README.md) | [日本語](README.ja.md)
+
 Index of shared rules under `.cursor/rules/`.
 
 ## Directory Structure

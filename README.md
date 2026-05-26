@@ -2,6 +2,8 @@
 
 ![License](https://img.shields.io/github/license/iam74k4/Cursor)
 
+Languages: [English](README.md) | [日本語](README.ja.md)
+
 This repository manages shared Cursor IDE rules, documentation, and workspace settings.
 
 ## Overview

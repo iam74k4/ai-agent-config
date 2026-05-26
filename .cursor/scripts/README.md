@@ -1,5 +1,7 @@
 # Scripts
 
+Languages: [English](README.md) | [日本語](README.ja.md)
+
 Index of helper scripts under `.cursor/scripts/`.
 
 ## Prerequisites
