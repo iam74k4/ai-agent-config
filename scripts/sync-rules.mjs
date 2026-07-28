@@ -94,21 +94,24 @@ async function ensureContents(path, expected) {
 let valid = true;
 for (const sourcePath of await filesIn(sourceDirectory)) {
   const rule = parseRule(sourcePath, await readFile(sourcePath, "utf8"));
-  valid &&= await ensureContents(
+  const cursorValid = await ensureContents(
     join(root, ".cursor", "rules", "generated", `${rule.metadata.id}.mdc`),
     cursorRule(rule),
   );
-  valid &&= await ensureContents(
+  valid &&= cursorValid;
+  const claudeValid = await ensureContents(
     join(root, ".claude", "rules", `${rule.metadata.id}.md`),
     claudeRule(rule),
   );
+  valid &&= claudeValid;
 
   const copilot = copilotRule(rule);
   if (copilot) {
-    valid &&= await ensureContents(
+    const copilotValid = await ensureContents(
       join(root, ".github", "instructions", `${rule.metadata.id}.instructions.md`),
       copilot,
     );
+    valid &&= copilotValid;
   }
 }
 
