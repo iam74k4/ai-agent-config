@@ -341,7 +341,7 @@ setup_venv() {
     return 0
   fi
 
-  if [[ ! -d "$VENV_DIR" ]] && ! "$py" -m venv "$VENV_DIR"; then
+  if [[ ! -d "$VENV_DIR" ]] && ! "$py" -m venv "$VENV_DIR" >/dev/null 2>&1; then
     warn "could not create $VENV_DIR (on Debian/Ubuntu install python3-venv)"
     return 0
   fi
