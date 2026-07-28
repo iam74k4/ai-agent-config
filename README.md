@@ -10,13 +10,13 @@ Clone the repository anywhere, then run the setup command for your platform.
 
 ```bash
 git clone https://github.com/iam74k4/Cursor.git
-cd ai-agent-config
+cd Cursor
 ./scripts/setup.sh
 ```
 
 ```powershell
 git clone https://github.com/iam74k4/Cursor.git
-Set-Location ai-agent-config
+Set-Location Cursor
 .\scripts\setup.ps1
 ```
 
