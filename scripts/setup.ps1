@@ -191,8 +191,14 @@ function Set-McpConfig {
     $markitdown = Join-Path $venvDir "Scripts\markitdown-mcp.exe"
     if ((Test-Path $markitdown) -or (Get-Command markitdown-mcp -ErrorAction SilentlyContinue)) {
         $servers.markitdown = [ordered]@{
-            command = (Join-Path $repoRoot ".cursor\scripts\markitdown-mcp.ps1")
-            args = @()
+            command = "powershell"
+            args = @(
+                "-NoProfile",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-File",
+                (Join-Path $repoRoot ".cursor\scripts\markitdown-mcp.ps1")
+            )
         }
         Write-Info "markitdown: enabled"
     } else {
@@ -208,6 +214,8 @@ function Set-McpConfig {
                 args = @("-y", "drawio-mcp-server", "--editor", "--http-port", "3000")
             }
             Write-Info "drawio: enabled (Node.js $nodeMajor)"
+        } else {
+            Write-Info "drawio: skipped (needs Node.js 20 or later)"
         }
     } else {
         Write-Info "drawio: skipped (needs Node.js 20 or later)"
@@ -238,16 +246,25 @@ function Set-MarkItDownVenv {
 
     if (-not (Test-Path $venvDir)) {
         & $python -m venv $venvDir
+        if ($LASTEXITCODE -ne 0) {
+            Write-WarningMessage "could not create $venvDir"
+            return
+        }
     }
 
     $venvPython = Join-Path $venvDir "Scripts\python.exe"
-    try {
-        Write-Info "installing markitdown-mcp (downloads packages)"
-        & $venvPython -m pip install --quiet --upgrade pip markitdown-mcp
-        Write-Info "installed $mcpExecutable"
-    } catch {
-        Write-WarningMessage "markitdown-mcp installation failed; re-run this script or install it manually"
+    if (-not (Test-Path $venvPython)) {
+        Write-WarningMessage "venv Python was not created at $venvPython"
+        return
     }
+
+    Write-Info "installing markitdown-mcp (downloads packages)"
+    & $venvPython -m pip install --quiet --upgrade pip markitdown-mcp
+    if ($LASTEXITCODE -ne 0 -or -not (Test-Path $mcpExecutable)) {
+        Write-WarningMessage "markitdown-mcp installation failed; re-run this script or install it manually"
+        return
+    }
+    Write-Info "installed $mcpExecutable"
 }
 
 Write-Host "Setting up $repoRoot"

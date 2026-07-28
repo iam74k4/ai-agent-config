@@ -7,7 +7,7 @@
  *   node scripts/sync-rules.mjs
  *   node scripts/sync-rules.mjs --check
  */
-import { readFile, readdir, mkdir, writeFile } from "node:fs/promises";
+import { readFile, readdir, mkdir, unlink, writeFile } from "node:fs/promises";
 import { relative, resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import process from "node:process";
@@ -28,6 +28,23 @@ async function filesIn(directory) {
       }),
   );
   return nested.flat();
+}
+
+async function generatedFilesIn(directory, extension) {
+  try {
+    const entries = await readdir(directory, { withFileTypes: true });
+    const nested = await Promise.all(
+      entries.map(async (entry) => {
+        const path = join(directory, entry.name);
+        if (entry.isDirectory()) return generatedFilesIn(path, extension);
+        return entry.isFile() && entry.name.endsWith(extension) ? [path] : [];
+      }),
+    );
+    return nested.flat();
+  } catch (error) {
+    if (error.code === "ENOENT") return [];
+    throw error;
+  }
 }
 
 function parseRule(sourcePath, source) {
@@ -92,26 +109,46 @@ async function ensureContents(path, expected) {
 }
 
 let valid = true;
+const expectedPaths = new Set();
+const targets = [
+  { directory: join(root, ".cursor", "rules", "generated"), extension: ".mdc" },
+  { directory: join(root, ".claude", "rules"), extension: ".md" },
+  { directory: join(root, ".github", "instructions"), extension: ".instructions.md" },
+];
+
 for (const sourcePath of await filesIn(sourceDirectory)) {
   const rule = parseRule(sourcePath, await readFile(sourcePath, "utf8"));
-  const cursorValid = await ensureContents(
-    join(root, ".cursor", "rules", "generated", `${rule.metadata.id}.mdc`),
-    cursorRule(rule),
-  );
+  const cursorPath = join(root, ".cursor", "rules", "generated", `${rule.metadata.id}.mdc`);
+  expectedPaths.add(cursorPath);
+  const cursorValid = await ensureContents(cursorPath, cursorRule(rule));
   valid &&= cursorValid;
-  const claudeValid = await ensureContents(
-    join(root, ".claude", "rules", `${rule.metadata.id}.md`),
-    claudeRule(rule),
-  );
+  const claudePath = join(root, ".claude", "rules", `${rule.metadata.id}.md`);
+  expectedPaths.add(claudePath);
+  const claudeValid = await ensureContents(claudePath, claudeRule(rule));
   valid &&= claudeValid;
 
   const copilot = copilotRule(rule);
   if (copilot) {
-    const copilotValid = await ensureContents(
-      join(root, ".github", "instructions", `${rule.metadata.id}.instructions.md`),
-      copilot,
-    );
+    const copilotPath = join(root, ".github", "instructions", `${rule.metadata.id}.instructions.md`);
+    expectedPaths.add(copilotPath);
+    const copilotValid = await ensureContents(copilotPath, copilot);
     valid &&= copilotValid;
+  }
+}
+
+for (const target of targets) {
+  for (const path of await generatedFilesIn(target.directory, target.extension)) {
+    if (expectedPaths.has(path)) continue;
+    const content = await readFile(path, "utf8");
+    if (!content.includes("Generated from rules; do not edit directly.")) continue;
+
+    if (checkOnly) {
+      console.error(`Stale generated file: ${relative(root, path)}`);
+      valid = false;
+    } else {
+      await unlink(path);
+      console.log(`Removed ${relative(root, path)}`);
+    }
   }
 }
 

@@ -1,6 +1,6 @@
 # AI Agent Config
 
-![License](https://img.shields.io/github/license/iam74k4/Cursor)
+![License](https://img.shields.io/github/license/iam74k4/ai-agent-config)
 
 Shared rules and local bootstrap tooling for Cursor, Claude Code, and GitHub Copilot.
 
@@ -9,14 +9,14 @@ Shared rules and local bootstrap tooling for Cursor, Claude Code, and GitHub Cop
 Clone the repository anywhere, then run the setup command for your platform.
 
 ```bash
-git clone https://github.com/iam74k4/Cursor.git
-cd Cursor
+git clone https://github.com/iam74k4/ai-agent-config.git
+cd ai-agent-config
 ./scripts/setup.sh
 ```
 
 ```powershell
-git clone https://github.com/iam74k4/Cursor.git
-Set-Location Cursor
+git clone https://github.com/iam74k4/ai-agent-config.git
+Set-Location ai-agent-config
 .\scripts\setup.ps1
 ```
 
