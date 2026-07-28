@@ -24,3 +24,4 @@ Index of helper scripts under `.cursor/scripts/`.
 - See `../docs/mcp.md` for MCP setup and server details.
 - See `../rules/mcp/drawio-rules.mdc` for draw.io-specific rules.
 - See `../rules/mcp/markitdown-rules.mdc` for MarkItDown MCP instructions.
+- Run `../../scripts/doctor.sh` after setup to verify local prerequisites.
