@@ -1,4 +1,4 @@
-# https://editorconfig.org — matches Cursor.code-workspace `files.eol` / newline settings
+# https://editorconfig.org — matches generated workspace EOL and newline settings
 root = true
 
 [*]

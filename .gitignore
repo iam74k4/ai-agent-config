@@ -6,6 +6,7 @@ Thumbs.db
 *.swp
 *.swo
 *~
+*.code-workspace
 
 # Environment / Secrets
 .env

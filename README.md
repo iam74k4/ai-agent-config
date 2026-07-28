@@ -1,156 +1,81 @@
-# Cursor
+# AI Agent Config
 
 ![License](https://img.shields.io/github/license/iam74k4/Cursor)
 
-This repository manages shared Cursor IDE rules, documentation, and workspace settings.
+Shared rules and local bootstrap tooling for Cursor, Claude Code, and GitHub Copilot.
 
-## Overview
+## Quick start
 
-It centralizes Cursor rules, MCP documentation, and helper scripts so multiple projects can follow a consistent AI agent workflow.
+Clone the repository anywhere, then run the setup command for your platform.
 
-## Structure
-
-```text
-.
-├── .editorconfig              # Shared indentation / newline defaults (Editor Config)
-├── Cursor.code-workspace      # Multi-root workspace; open this in Cursor
-├── LICENSE
-├── README.md
-└── .cursor/
-    ├── README.md              # Index for the .cursor directory
-    ├── agents/
-    │   └── README.md          # Agent definition placement and conventions
-    ├── docs/
-    │   └── mcp.md             # MCP server usage guide
-    ├── rules/
-    │   ├── docs/
-    │   │   └── readme-rules.mdc
-    │   ├── git/
-    │   │   └── git-rules.mdc  # Git workflow and commit conventions
-    │   └── mcp/
-    │       ├── context7-rules.mdc
-    │       ├── drawio-rules.mdc
-    │       ├── github-rules.mdc
-    │       └── markitdown-rules.mdc
-    └── scripts/
-        ├── README.md          # Script index
-        ├── drawio-mcp.sh      # draw.io MCP startup wrapper
-        └── markitdown-mcp.sh # MarkItDown MCP (venv or PATH)
+```bash
+git clone https://github.com/iam74k4/Cursor.git
+cd Cursor
+./scripts/setup.sh
 ```
 
-Summary (same layout as a diagram):
+```powershell
+git clone https://github.com/iam74k4/Cursor.git
+Set-Location Cursor
+.\scripts\setup.ps1
+```
+
+Setup creates a local MCP configuration, optionally installs MarkItDown, and generates a `<repository>.code-workspace` file. Open that workspace in Cursor. Re-run setup whenever sibling repositories change.
+
+## Requirements
+
+| Feature | Requirement | Behavior when unavailable |
+|---|---|---|
+| Core setup | Git | Setup stops because Git is required |
+| Workspace and draw.io MCP | Node.js 20+ | draw.io is omitted from local MCP config |
+| MarkItDown MCP | Python 3.10+ | MarkItDown is skipped with a warning |
+| GitHub MCP | `GITHUB_MCP_PAT` | GitHub MCP is omitted until a token is provided |
+| Higher Context7 limits | `CONTEXT7_API_KEY` | Context7 uses anonymous access |
+
+`GITHUB_PAT` and `GITHUB_TOKEN` are accepted as compatibility aliases. Tokens are read from the environment and written only to the gitignored `.cursor/mcp.json`.
+
+## Commands
+
+| Command | Purpose |
+|---|---|
+| `./scripts/setup.sh` | macOS/Linux bootstrap |
+| `.\scripts\setup.ps1` | Windows PowerShell bootstrap |
+| `./scripts/doctor.sh` | Non-destructive macOS/Linux diagnostic |
+| `.\scripts\doctor.ps1` | Non-destructive Windows diagnostic |
+| `node scripts/sync-rules.mjs` | Regenerate tool-specific rule adapters |
+| `node scripts/sync-rules.mjs --check` | Fail if generated adapters have drifted |
+
+Useful setup options are `--no-venv`, `--no-mcp`, and `--no-workspace` for Bash; PowerShell equivalents use `-NoVenv`, `-NoMcp`, and `-NoWorkspace`. Use `--force` or `-Force` only to replace an existing local MCP config.
+
+## Rule model
 
 ```mermaid
-flowchart TB
-  CW["Cursor.code-workspace"]
-  EC[".editorconfig"]
-  META["README.md · LICENSE"]
-  DC[".cursor/"]
-  DC --> R["rules/ · git, docs, mcp"]
-  DC --> DOC["docs/mcp.md"]
-  DC --> AG["agents/"]
-  DC --> SC["scripts/"]
+flowchart TD
+  canonical[Canonical_rules] --> generated[Generated_adapters]
+  generated --> cursor[Cursor_MDC]
+  generated --> claude[Claude_rules]
+  generated --> copilot[Copilot_instructions]
+  common[AGENTS_md] --> cursor
+  common --> claude
+  common --> copilot
 ```
+
+- `AGENTS.md` contains minimal repository-wide behavior.
+- `rules/` is the source of shared, path-aware rules.
+- `.cursor/rules/generated/`, `.claude/rules/`, and `.github/instructions/` are generated; edit `rules/`, then run the sync command.
+- Tool-specific MCP instructions stay in `.cursor/rules/mcp/`.
 
 ## Workspace
 
-`Cursor.code-workspace` groups the following projects into a multi-root workspace. Keep this table aligned with the `folders` list in that file.
-
-| Folder | Path | Description |
-|--------|------|-------------|
-| Cursor | `.` | This repository for shared rules and settings |
-| DiscordBot | `../DiscordBot` | Discord bot in TypeScript |
-| Portfolio | `../Portfolio` | Personal portfolio site |
-| MotionDesktop | `../MotionDesktop` | Motion planning desktop app docs and files |
-
-Multi-root layout (folders appear together in the Explorer when you open the workspace file):
-
-```mermaid
-flowchart LR
-  OPEN([Cursor.code-workspace])
-  OPEN --> Cursor
-  OPEN --> DiscordBot
-  OPEN --> Portfolio
-  OPEN --> MotionDesktop
-```
-
-## Workspace tips
-
-- **Build task**: Press **Cmd+Shift+B** (macOS) or **Ctrl+Shift+B** (Windows/Linux) to run **Git: fetch all workspaces** (default build task).
-- **Git status across repos**: **Terminal → Run Task… → Git: status all workspaces** prints `git status -sb` for each folder in order.
-- **Window and tabs**: Workspace settings use `${rootName}` in the window title and **medium** editor labels so it is easier to see which root folder you are in when filenames repeat across repos.
-
-## Workspace navigation (“code map” style tools)
-
-VS Code / Cursor does **not** ship a Visual Studio–style **Code Map** diagram (dependency graph) in the core product. For orientation and structure, use the built-ins below or extensions.
-
-| Goal | Built-in |
-|------|----------|
-| **Tree of symbols** in the open file (classes, functions, headings) | **Outline** view (`View → Appearance → Outline`, or move it next to Explorer) |
-| **Where you are** in path / symbol hierarchy | **Breadcrumbs** (below the editor tab); click segments to navigate |
-| **Bird’s-eye** scroll strip for long files | **Minimap** (`View → Appearance → Minimap`; optional per taste) |
-| **Jump across all roots** by symbol name | **Go to Symbol in Workspace…** — default shortcut is often **Cmd+T** (macOS) / **Ctrl+T** (Windows/Linux) |
-| **Find text** across every folder | **Search** (`Cmd/Ctrl+Shift+F`). Scope is the whole workspace; use “files to include” or restrict to a folder when needed |
-| **Per-repository Git** | **Source Control** — each root is its own repo; pin/hide repos from the “Source Control Repositories” view if the list is noisy |
-| **Whole-codebase questions (Cursor)** | Chat / Composer with **`@Codebase`** or attach folders/files so answers respect this workspace |
-
-Conceptual map (same ideas as the table):
-
-```mermaid
-flowchart TB
-  subgraph file["Current file"]
-    OL[Outline — symbol tree]
-    BR[Breadcrumbs]
-    MM[Minimap optional]
-  end
-  subgraph ws["Workspace"]
-    SYM[Go to Symbol in Workspace]
-    SRC[Search]
-    GIT[Source Control — per repo]
-    CB[@Codebase / Chat]
-  end
-```
-
-Multi-root tip: In the **Explorer**, each workspace folder is a separate root—collapse ones you are not touching to reduce noise.
-
-For language-specific **import or dependency graphs**, use an extension from the Marketplace (examples: npm/TypeScript dependency viewers, Swift module graphs).
-
-## Setup
-
-1. Clone this repository as `Cursor`.
-2. Place related repositories under the same parent directory as `Cursor`.
-3. Open `Cursor.code-workspace` in Cursor.
-
-Recommended directory layout:
-
-```text
-Git/
-├── Cursor
-├── DiscordBot
-├── Portfolio
-└── MotionDesktop
-```
+The generated workspace includes this repository and every Git repository beside it. It also generates matching `Git: fetch all workspaces` and `Git: status all workspaces` tasks, preventing folder/task drift.
 
 ## Documentation
 
-- Main index: `.cursor/README.md`
-- MCP setup guide: `.cursor/docs/mcp.md`
-- Rules index: `.cursor/rules/README.md`
-- Script index: `.cursor/scripts/README.md`
-- Agent conventions: `.cursor/agents/README.md`
-
-## Rules
-
-| Rule | Applies when | Purpose |
-|------|--------------|---------|
-| `git-rules.mdc` | Always | Conventional Commits, main-only workflow, SemVer, and release tags starting from `v1.0.0` |
-| `readme-rules.mdc` | When editing `**/README.md` | README structure, badges, writing style, and Markdown diagram guidance |
-| `context7-rules.mdc` | Always | Use Context7 MCP when fetching library documentation |
-| `drawio-rules.mdc` | As needed | Guidance for creating and editing diagrams with draw.io MCP |
-| `github-rules.mdc` | As needed | Guidance for GitHub MCP (issues, PRs, search, comments) |
-| `markitdown-rules.mdc` | As needed | Guidance for converting documents to Markdown with MarkItDown MCP |
-
-For more detail on Git workflow rules, start from `.cursor/rules/README.md`.
+- `.cursor/README.md`: Cursor-specific index
+- `.cursor/docs/mcp.md`: local MCP configuration and security
+- `.cursor/scripts/README.md`: legacy Cursor helper scripts
+- `docs/release-policy.md`: release and historical-tag policy
+- `rules/`: common rule sources
 
 ## License
 
