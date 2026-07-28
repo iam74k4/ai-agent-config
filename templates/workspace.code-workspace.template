@@ -1,0 +1,117 @@
+{
+  // このファイルはテンプレート。`scripts/setup.sh` / `scripts/setup.ps1` が
+  // マルチルートワークスペース（既定: <repo-name>.code-workspace）を生成する。
+  // 生成物は .gitignore 対象なので、設定を変えたいときはこのテンプレートを編集して再実行する。
+  //
+  // setup がリポジトリ名、folders配列、tasks配列を埋め込む。
+  "$schema": "https://json.schemastore.org/code-workspace",
+
+  // 左のエクスプローラに並ぶフォルダ一覧。setup が「このリポジトリ + 同じ親を持つ Git リポジトリ」を並べる。
+  // 手で足したい場合はテンプレートではなく生成後のファイルを直接編集する（次回 setup で上書きされる）。
+  "folders": __FOLDERS__,
+
+  // ワークスペース全体に効く設定（各リポジトリ内の .vscode/settings.json はそれより優先されることが多い）
+  "settings": {
+    // マルチルートで「今どのフォルダのファイルか」をタイトルバーに表示する
+    "window.title": "${dirty}${activeEditorShort}${separator}${rootName}",
+    // タブ名にディレクトリを含めやすくし、同名ファイルの取り違いを防ぐ
+    "workbench.editor.labelFormat": "medium",
+    // シングルクリックでプレビュータブにしない（複数リポジトリ間の行き来でタブが消えにくくなる）
+    "workbench.editor.enablePreview": false,
+
+    // --- Navigation（構成把握・コードマップに相当する UI を補助）---
+    // エディタ上のパンくず：ファイルパスとシンボル階層をたどれる
+    "breadcrumbs.enabled": true,
+    // パンくずにシンボル階層も表示（クラス／関数へのジャンプ）
+    "breadcrumbs.symbolPath": "on",
+    // アクティブファイルをエクスプローラで自動ハイライト（どのルート配下か把握しやすい）
+    "explorer.autoReveal": true,
+    // ファイル全体の縮小プレビュー（いわゆるミニマップ）
+    "editor.minimap.enabled": true,
+    "editor.minimap.showSlider": "mouseover",
+    // スクロールしても画面上部にコンテキスト（クラス／関数ヘッダ）を残す
+    "editor.stickyScroll.enabled": true,
+    "editor.stickyScroll.defaultModel": "indentationBasedFolding",
+
+    // Outline は「Explorer の記号ビュー」または Cmd/Ctrl+Shift+O で利用。
+    // 「Follow Cursor」は Outline ビューの「…」から（設定キーとしてはワークスペースに無いことが多い）
+    // フォールディングガイドを常に表示し、折りたたみで構造を掴みやすくする
+    "editor.showFoldingControls": "always",
+
+    // 新規統合ターミナルの開始ディレクトリ。Git 配下にまとめて作業する想定でこのリポジトリの親フォルダへ。
+    "terminal.integrated.cwd": "${workspaceFolder:__REPO_NAME__}/..",
+    // ターミナルに保持するスクロールバック行数
+    "terminal.integrated.scrollback": 5000,
+
+    // --- Git（拡張機能の Git ビュー・バックグラウンド更新）---
+    "git.autoFetch": true,
+    // 何秒ごとに自動 fetch するか（例: 180 = 約 3 分）
+    "git.autofetchPeriod": 180,
+    // fetch 時にリモートで削除されたブランチ参照をローカルからも整理する
+    "git.pruneOnFetch": true,
+
+    // --- ソース管理パネル ---
+    // tree: 変更ファイルをツリー表示 / list: フラット一覧
+    "scm.defaultViewMode": "tree",
+    // 「ソース管理リポジトリ」ビューに同時に見せる件数の上限（だいたいの複数ルート用に 10）
+    "scm.repositories.visible": 10,
+
+    // --- ファイルの改行・末尾 ---
+    "files.eol": "\n",
+    "files.insertFinalNewline": true,
+    "files.trimTrailingWhitespace": true,
+    // エクスプローラだけから隠す（ディスク上はそのまま）
+    "files.exclude": {
+      "**/.DS_Store": true
+    },
+    // true のとき .gitignore に載ったファイルはサイドバーでもグレーアウト／除外されやすい
+    "explorer.excludeGitIgnore": true,
+
+    // --- ファイル監視の除外（インデックス・ウォッチャ負荷軽減。編集の対象にはしないディレクトリ向け）---
+    "files.watcherExclude": {
+      "**/.git/objects/**": true,
+      "**/.git/subtree-cache/**": true,
+      "**/node_modules/**": true,
+      "**/.next/**": true,
+      "**/out/**": true,
+      "**/dist/**": true,
+      "**/build/**": true,
+      "**/target/**": true,
+      "**/coverage/**": true,
+      "**/.turbo/**": true,
+      "**/.cache/**": true,
+      "**/.venv/**": true,
+      // MarkItDown MCP 用ローカル venv（.gitignore 対象・.cursor/docs/mcp.md）
+      "**/.cursor/venv-markitdown/**": true
+    },
+    // --- ワークスペース検索（Ctrl/Cmd+Shift+F）から除外 ---※ロックファイルは検索したいことがあるので含めていない
+    "search.exclude": {
+      "**/node_modules": true,
+      "**/.next": true,
+      "**/out": true,
+      "**/dist": true,
+      "**/build": true,
+      "**/target": true,
+      "**/coverage": true,
+      "**/.turbo": true,
+      "**/.cache": true,
+      "**/.venv": true,
+      "**/.cursor/venv-markitdown": true
+    }
+  },
+
+  // 推奨拡張機能。ワークスペースを開いたときにインストールを促せる（チームで揃えたいときに便利）
+  "extensions": {
+    "recommendations": [
+      // ルートに .editorconfig があればインデントなどを合わせる
+      "editorconfig.editorconfig"
+    ]
+  },
+
+  // タスク: 「ターミナル → タスクの実行」または Cmd/Ctrl+Shift+B（既定ビルドは Git fetch 全体）
+  // setup が folders に合わせて fetch / status タスクを生成するため、リポジトリを増やしても取りこぼさない。
+  "tasks": {
+    "version": "2.0.0",
+    "tasks": __TASKS__
+  }
+}

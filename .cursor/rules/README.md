@@ -1,34 +1,16 @@
-# Rules
+# Cursor rules
 
-Index of shared rules under `.cursor/rules/`.
+## Generated shared rules
 
-## Directory Structure
+`generated/` is produced from the canonical files in `../../rules/`.
 
-| Path | Purpose |
-|------|---------|
-| `git/` | Git workflow, commits, branches, and tag policy |
-| `docs/` | Rules for editing documentation such as README files |
-| `mcp/` | Helper rules for MCP usage |
+```bash
+node scripts/sync-rules.mjs
+node scripts/sync-rules.mjs --check
+```
 
-## Main Rules
+Do not edit generated files directly.
 
-| Path | Purpose |
-|------|---------|
-| `git/git-rules.mdc` | Conventional Commits, main-only workflow, and SemVer tag policy |
-| `docs/readme-rules.mdc` | README structure, badges, heading order, and diagram guidance |
-| `mcp/context7-rules.mdc` | Use Context7 when retrieving current library documentation |
-| `mcp/drawio-rules.mdc` | Guidance for creating and editing diagrams with draw.io MCP |
-| `mcp/github-rules.mdc` | Guidance for GitHub MCP (issues, PRs, search, comments) |
-| `mcp/markitdown-rules.mdc` | Guidance for converting documents to Markdown with MarkItDown MCP |
+## Cursor-specific rules
 
-## How to Use
-
-- Check `git/` for always-on workflow rules.
-- Check `docs/` when editing README or other documentation files.
-- Check `mcp/` when using GitHub, Context7, draw.io, MarkItDown, or other MCP workflows; detailed setup is in `../docs/mcp.md`.
-
-## Related
-
-- Main index: `../README.md`
-- MCP guide: `../docs/mcp.md`
-- Helper scripts: `../scripts/README.md`
+`mcp/` contains instructions for MCP servers that are configured only in Cursor. They are intentionally separate from cross-tool rules because server availability and authentication are local concerns.

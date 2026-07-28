@@ -1,0 +1,25 @@
+{
+  "//": "Reference example. `scripts/setup.sh` / `scripts/setup.ps1` generate .cursor/mcp.json (gitignored) with absolute paths filled in and unavailable servers omitted. Replace __REPO_ROOT__ if you write the file by hand.",
+  "mcpServers": {
+    "context7": {
+      "url": "https://mcp.context7.com/mcp",
+      "headers": {
+        "CONTEXT7_API_KEY": "YOUR_CONTEXT7_API_KEY"
+      }
+    },
+    "github": {
+      "url": "https://api.githubcopilot.com/mcp/",
+      "headers": {
+        "Authorization": "Bearer YOUR_GITHUB_PAT"
+      }
+    },
+    "markitdown": {
+      "command": "__REPO_ROOT__/.cursor/scripts/markitdown-mcp.sh",
+      "args": []
+    },
+    "drawio": {
+      "command": "__REPO_ROOT__/.cursor/scripts/drawio-mcp.sh",
+      "args": []
+    }
+  }
+}

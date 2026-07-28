@@ -1,6 +1,6 @@
 ---
 description: Rules for retrieving library documentation with Context7 MCP
-alwaysApply: true
+alwaysApply: false
 ---
 
 # Context7 Integration

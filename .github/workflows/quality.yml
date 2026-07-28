@@ -1,0 +1,75 @@
+name: Quality
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  validation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Check generated rule adapters
+        run: node scripts/sync-rules.mjs --check
+      - name: Check shell syntax
+        run: bash -n scripts/setup.sh scripts/doctor.sh .cursor/scripts/*.sh
+      - name: Check setup workspace output
+        run: |
+          WORKSPACE_FILE="$RUNNER_TEMP/agent-config.code-workspace" \
+            scripts/setup.sh --no-venv --no-mcp
+          node -e '
+            const fs = require("fs");
+            let source = fs.readFileSync(process.env.RUNNER_TEMP + "/agent-config.code-workspace", "utf8");
+            source = source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1");
+            JSON.parse(source);
+          '
+      - name: Check MCP example JSON
+        run: node -e 'JSON.parse(require("fs").readFileSync(".cursor/mcp.example.json", "utf8"))'
+      - name: Check uncommitted setup artifacts
+        run: git diff --check
+
+  markdown:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: DavidAnson/markdownlint-cli2-action@v24
+        with:
+          globs: "**/*.md"
+
+  links:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: lycheeverse/lychee-action@v2
+        with:
+          args: --verbose --no-progress "**/*.md"
+
+  commitlint:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: wagoid/commitlint-github-action@v6
+        with:
+          configFile: commitlint.config.mjs
+
+  secrets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
