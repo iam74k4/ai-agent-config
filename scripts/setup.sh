@@ -50,7 +50,8 @@ Environment:
 
 The workspace file is a derived artifact and is regenerated on every run; edit
 templates/workspace.code-workspace.template instead. .cursor/mcp.json may hold
-secrets, so it is only written when missing or when --force is passed.
+secrets, so it is only written when missing or when --force is passed, and it
+is created with owner-only (0600) permissions.
 EOF
 }
 
@@ -100,13 +101,38 @@ json_escape() {
   printf '%s' "$s"
 }
 
+# Replace every occurrence of a literal placeholder. ${haystack//needle/value}
+# cannot be used here: bash expands `&` and backslash sequences inside the
+# replacement, which mangles the generated shell commands (`&&` became the
+# matched placeholder), so slice the string instead.
+substitute() {
+  local haystack=$1 needle=$2 value=$3 out=""
+  while [[ $haystack == *"$needle"* ]]; do
+    out+="${haystack%%"$needle"*}$value"
+    haystack="${haystack#*"$needle"}"
+  done
+  printf '%s%s' "$out" "$haystack"
+}
+
+# Quote a value for safe use inside a POSIX shell command.
+shell_quote() {
+  local s=$1
+  s=${s//\'/\'\\\'\'}
+  printf "'%s'" "$s"
+}
+
 write_file() {
-  local path=$1 content=$2
+  local path=$1 content=$2 mode=${3:-}
   if [[ $DRY_RUN -eq 1 ]]; then
     log "would write $path"
     return 0
   fi
   mkdir -p "$(dirname "$path")"
+  if [[ -n $mode ]]; then
+    # Create the file empty and restrict it before any secret reaches disk.
+    : >"$path"
+    chmod "$mode" "$path"
+  fi
   printf '%s' "$content" >"$path"
   log "wrote $path"
 }
@@ -179,9 +205,12 @@ render_repo_task() {
 }
 
 render_tasks() {
-  local name escaped fetch_deps="" status_deps="" per_repo="" out=""
+  local name escaped banner fetch_deps="" status_deps="" per_repo="" out=""
   for name in "${FOLDER_NAMES[@]}"; do
     escaped="$(json_escape "$name")"
+    # The banner is embedded in a shell command, so quote it before escaping it
+    # for JSON; repository names may contain quotes.
+    banner="$(json_escape "$(shell_quote "=== $name ===")")"
     [[ -n "$fetch_deps" ]] && fetch_deps+=$',\n'
     fetch_deps+="          \"Git: fetch ($escaped)\""
     [[ -n "$status_deps" ]] && status_deps+=$',\n'
@@ -190,7 +219,7 @@ render_tasks() {
     per_repo+=$',\n'
     per_repo+="$(render_repo_task "Git: fetch ($escaped)" "git fetch --all --prune" "$escaped")"
     per_repo+=$',\n'
-    per_repo+="$(render_repo_task "Git: status ($escaped)" "echo '=== $escaped ===' && git status -sb" "$escaped")"
+    per_repo+="$(render_repo_task "Git: status ($escaped)" "echo $banner && git status -sb" "$escaped")"
   done
 
   out+="["$'\n'
@@ -246,9 +275,9 @@ generate_workspace() {
 
   local content
   content="$(cat "$TEMPLATE")"
-  content="${content//__REPO_NAME__/$(json_escape "$REPO_NAME")}"
-  content="${content/__FOLDERS__/$(render_folders)}"
-  content="${content/__TASKS__/$(render_tasks)}"
+  content="$(substitute "$content" "__REPO_NAME__" "$(json_escape "$REPO_NAME")")"
+  content="$(substitute "$content" "__FOLDERS__" "$(render_folders)")"
+  content="$(substitute "$content" "__TASKS__" "$(render_tasks)")"
   write_file "$WORKSPACE_FILE" "$content"$'\n'
 }
 
@@ -282,7 +311,18 @@ generate_mcp() {
   entry+='    }'
   add_entry "$entry"
 
-  local pat="${GITHUB_MCP_PAT:-${GITHUB_PAT:-${GITHUB_TOKEN:-}}}"
+  local pat=""
+  if [[ -n "${GITHUB_MCP_PAT:-}" ]]; then
+    pat="$GITHUB_MCP_PAT"
+  elif [[ -n "${GITHUB_PAT:-}" ]]; then
+    pat="$GITHUB_PAT"
+  elif [[ -n "${GITHUB_TOKEN:-}" ]]; then
+    # GITHUB_TOKEN is set automatically by CI systems and other tooling, so
+    # baking it into a config file on disk is rarely what the user intended.
+    pat="$GITHUB_TOKEN"
+    warn "using GITHUB_TOKEN because GITHUB_MCP_PAT is unset; set GITHUB_MCP_PAT to control which token is written"
+  fi
+
   if [[ -n "$pat" ]]; then
     entry='    "github": {'$'\n'
     entry+='      "url": "https://api.githubcopilot.com/mcp/",'$'\n'
@@ -318,7 +358,7 @@ generate_mcp() {
     log "drawio: skipped (needs Node.js 20 or later)"
   fi
 
-  write_file "$MCP_FILE" "{"$'\n'"  \"mcpServers\": {"$'\n'"$body"$'\n'"  }"$'\n'"}"$'\n'
+  write_file "$MCP_FILE" "{"$'\n'"  \"mcpServers\": {"$'\n'"$body"$'\n'"  }"$'\n'"}"$'\n' 600
 }
 
 # --- MarkItDown venv ----------------------------------------------------------
