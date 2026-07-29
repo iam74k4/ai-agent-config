@@ -1,3 +1,8 @@
+# Bootstrap this repository after a fresh clone.
+#
+# Generates the multi-root workspace file, .cursor/mcp.json, and the MarkItDown
+# venv so that a clone is usable without editing machine-specific paths by hand.
+# macOS/Linux, or Windows with WSL/Git Bash: use scripts/setup.sh instead.
 [CmdletBinding()]
 param(
     [switch]$Force,
@@ -8,6 +13,10 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+# Native commands report failure through $LASTEXITCODE, which this script checks
+# itself. PowerShell 7.4+ would otherwise turn any non-zero exit into a throw.
+$PSNativeCommandUseErrorActionPreference = $false
+
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $repoName = Split-Path -Leaf $repoRoot
 $parentDir = Split-Path -Parent $repoRoot
@@ -30,7 +39,26 @@ function Write-WarningMessage([string]$Message) {
     $warnings.Add($Message)
 }
 
-function Write-TextFile([string]$Path, [string]$Content) {
+# Limit a file that holds secrets to the current account.
+function Protect-File([string]$Path) {
+    try {
+        if ($env:OS -eq "Windows_NT") {
+            $identity = [System.Security.Principal.WindowsIdentity]::GetCurrent().User
+            $acl = New-Object System.Security.AccessControl.FileSecurity
+            $acl.SetAccessRuleProtection($true, $false)
+            $acl.AddAccessRule(
+                (New-Object System.Security.AccessControl.FileSystemAccessRule($identity, "FullControl", "Allow"))
+            )
+            Set-Acl -Path $Path -AclObject $acl
+        } else {
+            & chmod 600 $Path
+        }
+    } catch {
+        Write-WarningMessage "could not restrict permissions on $Path"
+    }
+}
+
+function Write-TextFile([string]$Path, [string]$Content, [switch]$Private) {
     if ($DryRun) {
         Write-Info "would write $Path"
         return
@@ -38,20 +66,25 @@ function Write-TextFile([string]$Path, [string]$Content) {
 
     $directory = Split-Path -Parent $Path
     New-Item -ItemType Directory -Force -Path $directory | Out-Null
-    [System.IO.File]::WriteAllText($Path, $Content + [Environment]::NewLine, (New-Object System.Text.UTF8Encoding($false)))
+    if ($Private) {
+        # Restrict the file before any secret reaches disk.
+        New-Item -ItemType File -Force -Path $Path | Out-Null
+        Protect-File $Path
+    }
+
+    # The repository standardizes on LF; ConvertTo-Json emits CRLF on Windows.
+    $normalized = $Content -replace "`r`n", "`n"
+    [System.IO.File]::WriteAllText($Path, $normalized + "`n", (New-Object System.Text.UTF8Encoding($false)))
     Write-Info "wrote $Path"
 }
 
 function Get-Python {
-    foreach ($command in @("py", "python")) {
-        if (Get-Command $command -ErrorAction SilentlyContinue) {
-            try {
-                & $command --version 2>$null | Out-Null
-                return $command
-            } catch {
-                continue
-            }
-        }
+    foreach ($command in @("py", "python", "python3")) {
+        if (-not (Get-Command $command -ErrorAction SilentlyContinue)) { continue }
+        # MarkItDown needs 3.10+; a bare --version check accepts older builds
+        # and fails later with a confusing pip error.
+        & $command -c "import sys; sys.exit(0 if sys.version_info >= (3, 10) else 1)" 2>$null
+        if ($LASTEXITCODE -eq 0) { return $command }
     }
     return $null
 }
@@ -127,8 +160,9 @@ function Get-Tasks($Folders) {
     )
 
     foreach ($folder in $Folders) {
+        $banner = $folder.name.Replace("'", "''")
         $tasks += New-Task "Git: fetch ($($folder.name))" "git fetch --all --prune" $folder.name
-        $tasks += New-Task "Git: status ($($folder.name))" "Write-Output '=== $($folder.name) ==='; git status -sb" $folder.name
+        $tasks += New-Task "Git: status ($($folder.name))" "Write-Output '=== $banner ==='; git status -sb" $folder.name
     }
     return $tasks
 }
@@ -147,8 +181,10 @@ function Set-Workspace {
     }
 
     $template = Get-Content -Raw -Path $templateFile
-    $folderJson = @($folders) | ConvertTo-Json -Depth 10
-    $taskJson = @(Get-Tasks $folders) | ConvertTo-Json -Depth 10
+    # Pass the arrays with -InputObject: piping unrolls them, and a single
+    # folder would then serialize as an object instead of an array.
+    $folderJson = ConvertTo-Json -InputObject $folders -Depth 10
+    $taskJson = ConvertTo-Json -InputObject @(Get-Tasks $folders) -Depth 10
     $content = $template.Replace("__REPO_NAME__", $repoName).Replace("__FOLDERS__", $folderJson).Replace("__TASKS__", $taskJson)
     Write-TextFile $workspaceFile $content.TrimEnd()
 }
@@ -175,7 +211,18 @@ function Set-McpConfig {
         Write-Info "context7: enabled without API key (set CONTEXT7_API_KEY for higher rate limits)"
     }
 
-    $githubToken = if ($env:GITHUB_MCP_PAT) { $env:GITHUB_MCP_PAT } elseif ($env:GITHUB_PAT) { $env:GITHUB_PAT } else { $env:GITHUB_TOKEN }
+    $githubToken = $null
+    if ($env:GITHUB_MCP_PAT) {
+        $githubToken = $env:GITHUB_MCP_PAT
+    } elseif ($env:GITHUB_PAT) {
+        $githubToken = $env:GITHUB_PAT
+    } elseif ($env:GITHUB_TOKEN) {
+        # GITHUB_TOKEN is set automatically by CI systems and other tooling, so
+        # baking it into a config file on disk is rarely what the user intended.
+        $githubToken = $env:GITHUB_TOKEN
+        Write-WarningMessage "using GITHUB_TOKEN because GITHUB_MCP_PAT is unset; set GITHUB_MCP_PAT to control which token is written"
+    }
+
     if ($githubToken) {
         $servers.github = [ordered]@{
             url = "https://api.githubcopilot.com/mcp/"
@@ -210,8 +257,14 @@ function Set-McpConfig {
         $nodeMajor = [int](& node -p "process.versions.node.split('.')[0]")
         if ($nodeMajor -ge 20) {
             $servers.drawio = [ordered]@{
-                command = "npx"
-                args = @("-y", "drawio-mcp-server", "--editor", "--http-port", "3000")
+                command = "powershell"
+                args = @(
+                    "-NoProfile",
+                    "-ExecutionPolicy",
+                    "Bypass",
+                    "-File",
+                    (Join-Path $repoRoot ".cursor\scripts\drawio-mcp.ps1")
+                )
             }
             Write-Info "drawio: enabled (Node.js $nodeMajor)"
         } else {
@@ -222,14 +275,14 @@ function Set-McpConfig {
     }
 
     $config = [ordered]@{ mcpServers = $servers } | ConvertTo-Json -Depth 10
-    Write-TextFile $mcpFile $config
+    Write-TextFile $mcpFile $config -Private
 }
 
 function Set-MarkItDownVenv {
     Write-Step "MarkItDown virtual environment"
     $python = Get-Python
     if (-not $python) {
-        Write-WarningMessage "Python was not found; skipping MarkItDown setup"
+        Write-WarningMessage "Python 3.10+ was not found; skipping MarkItDown setup"
         return
     }
 
