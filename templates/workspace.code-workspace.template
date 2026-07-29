@@ -1,73 +1,79 @@
 {
-  // このファイルはテンプレート。`scripts/setup.sh` / `scripts/setup.ps1` が
-  // マルチルートワークスペース（既定: <repo-name>.code-workspace）を生成する。
-  // 生成物は .gitignore 対象なので、設定を変えたいときはこのテンプレートを編集して再実行する。
+  // Template only. `scripts/setup.sh` / `scripts/setup.ps1` generate the
+  // multi-root workspace (default: <repo-name>.code-workspace) from this file.
+  // The result is gitignored, so change settings here and re-run setup.
   //
-  // setup がリポジトリ名、folders配列、tasks配列を埋め込む。
+  // Setup fills in the repository name, the folders array, and the tasks array.
   "$schema": "https://json.schemastore.org/code-workspace",
 
-  // 左のエクスプローラに並ぶフォルダ一覧。setup が「このリポジトリ + 同じ親を持つ Git リポジトリ」を並べる。
-  // 手で足したい場合はテンプレートではなく生成後のファイルを直接編集する（次回 setup で上書きされる）。
+  // Folder list shown in the explorer. Setup lists this repository plus every
+  // Git repository that shares its parent directory. To add one by hand, edit
+  // the generated file rather than this template (setup overwrites it).
   "folders": __FOLDERS__,
 
-  // ワークスペース全体に効く設定（各リポジトリ内の .vscode/settings.json はそれより優先されることが多い）
+  // Workspace-wide settings. A repository's own .vscode/settings.json usually
+  // takes precedence over these.
   "settings": {
-    // マルチルートで「今どのフォルダのファイルか」をタイトルバーに表示する
+    // Show which folder the active file belongs to in the title bar.
     "window.title": "${dirty}${activeEditorShort}${separator}${rootName}",
-    // タブ名にディレクトリを含めやすくし、同名ファイルの取り違いを防ぐ
+    // Include the directory in tab labels so same-named files stay distinct.
     "workbench.editor.labelFormat": "medium",
-    // シングルクリックでプレビュータブにしない（複数リポジトリ間の行き来でタブが消えにくくなる）
+    // Do not open single clicks as preview tabs, so tabs survive jumping
+    // between repositories.
     "workbench.editor.enablePreview": false,
 
-    // --- Navigation（構成把握・コードマップに相当する UI を補助）---
-    // エディタ上のパンくず：ファイルパスとシンボル階層をたどれる
+    // --- Navigation ---
+    // Breadcrumbs: follow the file path and the symbol hierarchy.
     "breadcrumbs.enabled": true,
-    // パンくずにシンボル階層も表示（クラス／関数へのジャンプ）
+    // Include symbols in breadcrumbs, for jumping to a class or function.
     "breadcrumbs.symbolPath": "on",
-    // アクティブファイルをエクスプローラで自動ハイライト（どのルート配下か把握しやすい）
+    // Highlight the active file in the explorer, showing which root it is under.
     "explorer.autoReveal": true,
-    // ファイル全体の縮小プレビュー（いわゆるミニマップ）
+    // Scaled-down preview of the whole file.
     "editor.minimap.enabled": true,
     "editor.minimap.showSlider": "mouseover",
-    // スクロールしても画面上部にコンテキスト（クラス／関数ヘッダ）を残す
+    // Keep the enclosing context (class/function header) pinned while scrolling.
     "editor.stickyScroll.enabled": true,
     "editor.stickyScroll.defaultModel": "indentationBasedFolding",
 
-    // Outline は「Explorer の記号ビュー」または Cmd/Ctrl+Shift+O で利用。
-    // 「Follow Cursor」は Outline ビューの「…」から（設定キーとしてはワークスペースに無いことが多い）
-    // フォールディングガイドを常に表示し、折りたたみで構造を掴みやすくする
+    // The Outline view lives in the explorer, or use Cmd/Ctrl+Shift+O.
+    // "Follow Cursor" is a toggle in the Outline view's "..." menu rather than
+    // a workspace setting.
+    // Always show folding controls, so the structure is easier to read.
     "editor.showFoldingControls": "always",
 
-    // 新規統合ターミナルの開始ディレクトリ。Git 配下にまとめて作業する想定でこのリポジトリの親フォルダへ。
+    // Starting directory for new integrated terminals. This assumes the
+    // repositories are worked on together, so it points at the parent folder.
     "terminal.integrated.cwd": "${workspaceFolder:__REPO_NAME__}/..",
-    // ターミナルに保持するスクロールバック行数
+    // Lines of scrollback kept per terminal.
     "terminal.integrated.scrollback": 5000,
 
-    // --- Git（拡張機能の Git ビュー・バックグラウンド更新）---
+    // --- Git (extension view and background refresh) ---
     "git.autoFetch": true,
-    // 何秒ごとに自動 fetch するか（例: 180 = 約 3 分）
+    // Seconds between automatic fetches (180 = about 3 minutes).
     "git.autofetchPeriod": 180,
-    // fetch 時にリモートで削除されたブランチ参照をローカルからも整理する
+    // Drop local references to branches deleted on the remote when fetching.
     "git.pruneOnFetch": true,
 
-    // --- ソース管理パネル ---
-    // tree: 変更ファイルをツリー表示 / list: フラット一覧
+    // --- Source control panel ---
+    // tree: changed files as a tree / list: flat list
     "scm.defaultViewMode": "tree",
-    // 「ソース管理リポジトリ」ビューに同時に見せる件数の上限（だいたいの複数ルート用に 10）
+    // Repositories shown at once in the "Source Control Repositories" view.
     "scm.repositories.visible": 10,
 
-    // --- ファイルの改行・末尾 ---
+    // --- Line endings and trailing whitespace ---
     "files.eol": "\n",
     "files.insertFinalNewline": true,
     "files.trimTrailingWhitespace": true,
-    // エクスプローラだけから隠す（ディスク上はそのまま）
+    // Hide from the explorer only; the files stay on disk.
     "files.exclude": {
       "**/.DS_Store": true
     },
-    // true のとき .gitignore に載ったファイルはサイドバーでもグレーアウト／除外されやすい
+    // When true, gitignored files are greyed out or hidden in the sidebar.
     "explorer.excludeGitIgnore": true,
 
-    // --- ファイル監視の除外（インデックス・ウォッチャ負荷軽減。編集の対象にはしないディレクトリ向け）---
+    // --- File watcher exclusions (lower indexing and watcher load, for
+    // directories that are never edited directly) ---
     "files.watcherExclude": {
       "**/.git/objects/**": true,
       "**/.git/subtree-cache/**": true,
@@ -81,10 +87,11 @@
       "**/.turbo/**": true,
       "**/.cache/**": true,
       "**/.venv/**": true,
-      // MarkItDown MCP 用ローカル venv（.gitignore 対象・.cursor/docs/mcp.md）
+      // Local venv for MarkItDown MCP (gitignored; see .cursor/docs/mcp.md).
       "**/.cursor/venv-markitdown/**": true
     },
-    // --- ワークスペース検索（Ctrl/Cmd+Shift+F）から除外 ---※ロックファイルは検索したいことがあるので含めていない
+    // --- Workspace search exclusions (Ctrl/Cmd+Shift+F). Lock files are left
+    // searchable on purpose. ---
     "search.exclude": {
       "**/node_modules": true,
       "**/.next": true,
@@ -100,16 +107,18 @@
     }
   },
 
-  // 推奨拡張機能。ワークスペースを開いたときにインストールを促せる（チームで揃えたいときに便利）
+  // Recommended extensions, offered when the workspace is opened. Useful for
+  // keeping a team on the same tooling.
   "extensions": {
     "recommendations": [
-      // ルートに .editorconfig があればインデントなどを合わせる
+      // Applies indentation and other settings from the root .editorconfig.
       "editorconfig.editorconfig"
     ]
   },
 
-  // タスク: 「ターミナル → タスクの実行」または Cmd/Ctrl+Shift+B（既定ビルドは Git fetch 全体）
-  // setup が folders に合わせて fetch / status タスクを生成するため、リポジトリを増やしても取りこぼさない。
+  // Tasks: "Terminal > Run Task", or Cmd/Ctrl+Shift+B for the default build
+  // (fetch every repository). Setup generates fetch/status tasks from the
+  // folders array, so adding a repository never leaves a task behind.
   "tasks": {
     "version": "2.0.0",
     "tasks": __TASKS__

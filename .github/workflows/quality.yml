@@ -30,12 +30,89 @@ jobs:
             const fs = require("fs");
             let source = fs.readFileSync(process.env.RUNNER_TEMP + "/agent-config.code-workspace", "utf8");
             source = source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1");
-            JSON.parse(source);
+            const workspace = JSON.parse(source);
+            if (!Array.isArray(workspace.folders)) {
+              throw new Error("folders must be a JSON array");
+            }
+            const rendered = JSON.stringify(workspace);
+            if (/__[A-Z_]+__/.test(rendered)) {
+              throw new Error("generated workspace still contains a placeholder");
+            }
+            // Valid JSON is not enough: shell operators inside task commands
+            // have been silently mangled by templating before.
+            const status = workspace.tasks.tasks.find(
+              (task) => typeof task.label === "string" && task.label.startsWith("Git: status ("),
+            );
+            if (!status || !status.command.includes("&& git status -sb")) {
+              throw new Error("git status task command is malformed");
+            }
           '
+      - name: Check generated MCP config permissions
+        env:
+          GITHUB_MCP_PAT: not-a-real-token
+        run: |
+          scripts/setup.sh --no-venv --no-workspace --force
+          mode="$(stat -c '%a' .cursor/mcp.json)"
+          if [ "$mode" != "600" ]; then
+            echo "expected .cursor/mcp.json to be mode 600, got $mode"
+            exit 1
+          fi
+          rm -f .cursor/mcp.json
       - name: Check MCP example JSON
         run: node -e 'JSON.parse(require("fs").readFileSync(".cursor/mcp.example.json", "utf8"))'
       - name: Check uncommitted setup artifacts
-        run: git diff --check
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "setup produced uncommitted changes:"
+            git status --porcelain
+            exit 1
+          fi
+
+  powershell:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Check PowerShell syntax
+        shell: pwsh
+        run: |
+          $failed = $false
+          foreach ($file in Get-ChildItem -Path . -Recurse -Force -Filter *.ps1) {
+            $errors = $null
+            [void][System.Management.Automation.Language.Parser]::ParseFile($file.FullName, [ref]$null, [ref]$errors)
+            if ($errors) {
+              $failed = $true
+              Write-Host "::error file=$($file.FullName)::$($errors[0].Message)"
+            }
+          }
+          if ($failed) { exit 1 }
+      - name: Check setup workspace output
+        shell: pwsh
+        run: |
+          $env:WORKSPACE_FILE = Join-Path $env:RUNNER_TEMP "agent-config.code-workspace"
+          ./scripts/setup.ps1 -NoVenv -NoMcp
+          $raw = Get-Content -Raw $env:WORKSPACE_FILE
+          # A single folder must still serialize as an array, not an object.
+          if ($raw -notmatch '"folders":\s*\[') {
+            throw "folders must be a JSON array"
+          }
+          if ($raw -match "__[A-Z_]+__") {
+            throw "generated workspace still contains a placeholder"
+          }
+          $json = [regex]::Replace($raw, "(?s)/\*.*?\*/", "")
+          $json = [regex]::Replace($json, "(?m)(^|[^:])//.*$", '$1')
+          $workspace = $json | ConvertFrom-Json
+          $status = $workspace.tasks.tasks | Where-Object { $_.label -like "Git: status (*" } | Select-Object -First 1
+          if (-not $status -or $status.command -notlike "*; git status -sb") {
+            throw "git status task command is malformed"
+          }
+      - name: Check uncommitted setup artifacts
+        shell: pwsh
+        run: |
+          $changes = git status --porcelain
+          if ($changes) {
+            $changes
+            throw "setup produced uncommitted changes"
+          }
 
   markdown:
     runs-on: ubuntu-latest

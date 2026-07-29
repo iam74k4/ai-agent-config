@@ -10,7 +10,7 @@ Cursor-specific files live under `.cursor/`. Run `scripts/setup.sh` or `scripts/
 | `rules/mcp/` | Cursor-specific MCP usage guidance |
 | `agents/` | Cursor-specific agent definitions |
 | `docs/mcp.md` | Local MCP configuration and security guidance |
-| `scripts/` | Legacy Cursor MCP wrappers |
+| `scripts/` | Cursor MCP wrapper scripts |
 | `mcp.example.json` | Secret-free MCP reference configuration |
 
 ## Rules

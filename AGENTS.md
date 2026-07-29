@@ -1,17 +1,25 @@
 # Repository Instructions
 
-## Always
+<!-- generated:rules:start -->
+<!-- Generated from rules; do not edit directly. Edit rules/ and run: node scripts/sync-rules.mjs -->
 
-- Keep changes focused on the user’s request and preserve existing behavior unless a change is required.
+## General requirements
+
+- Keep edits focused and preserve existing behavior unless the request requires a change.
 - Read applicable path-scoped instructions before modifying files.
-- Do not commit secrets, generated local configuration, or machine-specific paths.
-- Run the relevant validation before handing off a change.
-- Use Conventional Commits: `type(scope): subject`, with an English, lowercase imperative subject.
+- Never commit credentials, local configuration, generated workspace files, or absolute machine paths.
+- Run the relevant verification before completing a change.
+- Keep instructions concise and move guaranteed checks to scripts or CI.
 
-## Git and releases
+## Git workflow
 
 - Create topic branches from `main`; do not commit directly to `main`.
-- Tag only released commits that are already on `main`. Do not tag ordinary topic-branch pushes.
+- Use Conventional Commits: `type(scope): subject`, with an English, lowercase imperative subject.
+- Commit one logical change at a time and do not include generated summaries.
+- Do not create release tags for ordinary topic-branch pushes.
+- Create an annotated SemVer tag only for a released commit that is already reachable from `main`.
+
+<!-- generated:rules:end -->
 
 ## Documentation
 
