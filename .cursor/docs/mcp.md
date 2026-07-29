@@ -19,7 +19,7 @@ It generates `.cursor/mcp.json`, which is intentionally ignored because it can c
 | Context7 | Included without a key | Set `CONTEXT7_API_KEY` for higher rate limits |
 | GitHub | Omitted by default | Set `GITHUB_MCP_PAT`, then rerun setup with `--force` / `-Force` |
 | MarkItDown | Included after its local venv is ready | Installed by setup when Python 3.10+ is available |
-| draw.io | Included when Node.js 20+ is available | Uses the repository wrapper on Bash; `npx` on PowerShell |
+| draw.io | Included when Node.js 20+ is available | Uses the repository wrapper, which frees its ports first |
 
 The secret-free reference format is [`.cursor/mcp.example.json`](../mcp.example.json). Do not copy its placeholder values into `.cursor/mcp.json`.
 
@@ -28,6 +28,8 @@ The secret-free reference format is [`.cursor/mcp.example.json`](../mcp.example.
 - Treat GitHub tokens and Context7 keys as passwords.
 - Use fine-grained, least-privilege GitHub tokens.
 - Never commit `.cursor/mcp.json` or paste a token into a prompt.
+- Setup writes `.cursor/mcp.json` with owner-only permissions; `doctor` reports when other accounts can read it.
+- Prefer `GITHUB_MCP_PAT` over `GITHUB_TOKEN`, which CI systems set automatically and which setup would otherwise write to disk.
 - MarkItDown runs as the current OS user. Only pass it files and URLs that the current task is allowed to expose.
 - Keep local HTTP MCP services bound to localhost.
 

@@ -1,22 +1,23 @@
 # Scripts
 
-Index of helper scripts under `.cursor/scripts/`.
+Index of helper scripts under `.cursor/scripts/`. `scripts/setup.sh` and
+`scripts/setup.ps1` reference these from the generated `.cursor/mcp.json`.
 
 ## Prerequisites
 
-- Scripts in this directory may be referenced directly by Cursor.
-- `drawio-mcp.sh` uses `bash`, `pkill`, `lsof`, and `ps`.
-- On Windows, it assumes an environment such as WSL or Git Bash with Unix-style commands available.
-- `markitdown-mcp.sh` uses `bash` and can use `.cursor/venv-markitdown`.
-- `markitdown-mcp.ps1` uses PowerShell and a local `.venv-markitdown` virtual environment.
+- `drawio-mcp.sh` uses `bash` and, when available, `pgrep`, `lsof`, and `ps`.
+- `drawio-mcp.ps1` uses PowerShell, `Get-CimInstance`, and `Get-NetTCPConnection`.
+- `markitdown-mcp.sh` and `markitdown-mcp.ps1` use `.cursor/venv-markitdown`, or `markitdown-mcp` on `PATH`.
+- `MARKITDOWN_MCP_VENV` overrides the virtual environment path for both MarkItDown wrappers.
 
 ## Available Scripts
 
 | Script | Purpose |
 |--------|---------|
-| `drawio-mcp.sh` | Stops existing processes before starting draw.io MCP to avoid port conflicts |
-| `markitdown-mcp.sh` | Runs `markitdown-mcp` from `.cursor/venv-markitdown` if present, otherwise from `PATH` (`MARKITDOWN_MCP_VENV` overrides the venv path) |
-| `markitdown-mcp.ps1` | Starts the MarkItDown MCP server from the local Python virtual environment |
+| `drawio-mcp.sh` | Stops stale processes and frees ports before starting draw.io MCP |
+| `drawio-mcp.ps1` | Windows equivalent of `drawio-mcp.sh` |
+| `markitdown-mcp.sh` | Runs `markitdown-mcp` from the local venv, otherwise from `PATH` |
+| `markitdown-mcp.ps1` | Windows equivalent of `markitdown-mcp.sh` |
 
 ## Related Documents
 
