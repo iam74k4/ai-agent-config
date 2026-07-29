@@ -4,6 +4,7 @@ paths:
 ---
 
 <!-- Generated from rules; do not edit directly. -->
+<!-- Advisory scope: apply when the change touches **/README.md. -->
 
 # README requirements
 
