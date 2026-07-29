@@ -2,6 +2,9 @@
 param()
 
 $ErrorActionPreference = "Stop"
+# Native commands report failure through $LASTEXITCODE, which this script checks
+# itself. PowerShell 7.4+ would otherwise turn any non-zero exit into a throw.
+$PSNativeCommandUseErrorActionPreference = $false
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $repoName = Split-Path -Leaf $repoRoot
 $mcpFile = Join-Path $repoRoot ".cursor\mcp.json"
@@ -60,7 +63,8 @@ Write-Host "`n==> Generated files"
 if (Test-Path $workspaceFile) {
     try {
         $source = Get-Content -Raw $workspaceFile
-        $json = [regex]::Replace($source, "(?m)(^|[^:])//.*$", '$1')
+        $json = [regex]::Replace($source, "(?s)/\*.*?\*/", "")
+        $json = [regex]::Replace($json, "(?m)(^|[^:])//.*$", '$1')
         $null = $json | ConvertFrom-Json
         Write-Pass "$(Split-Path -Leaf $workspaceFile) is valid JSONC"
     } catch {
@@ -80,6 +84,21 @@ if (Test-Path $mcpFile) {
         }
     } catch {
         Write-Fail ".cursor/mcp.json is not valid JSON"
+    }
+
+    # The file holds tokens, so it should not be reachable by other accounts.
+    try {
+        $identity = [System.Security.Principal.WindowsIdentity]::GetCurrent().User
+        $others = @((Get-Acl -Path $mcpFile).Access | Where-Object {
+            $_.IdentityReference.Translate([System.Security.Principal.SecurityIdentifier]) -ne $identity
+        })
+        if ($others.Count -eq 0) {
+            Write-Pass ".cursor/mcp.json is readable only by its owner"
+        } else {
+            Write-Warn ".cursor/mcp.json grants access to other accounts; re-run scripts/setup.ps1 -Force"
+        }
+    } catch {
+        Write-Warn "could not inspect permissions on .cursor/mcp.json"
     }
 } else {
     Write-Warn ".cursor/mcp.json is missing; run scripts/setup.ps1"

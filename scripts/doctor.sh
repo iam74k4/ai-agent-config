@@ -100,8 +100,15 @@ if [[ -f "$MCP_FILE" ]]; then
   else
     warn "cannot validate MCP JSON without Node.js"
   fi
-  if rg -q 'YOUR_[A-Z_]*KEY|YOUR_GITHUB_PAT|__REPO_ROOT__' "$MCP_FILE"; then
+  # grep is POSIX; ripgrep is not guaranteed to exist and used to make this
+  # check exit 0 while silently skipping the placeholder scan.
+  if grep -Eq 'YOUR_[A-Z_]*KEY|YOUR_GITHUB_PAT|__REPO_ROOT__' "$MCP_FILE"; then
     fail ".cursor/mcp.json contains an unresolved placeholder"
+  fi
+  if [[ "$(stat -c '%a' "$MCP_FILE" 2>/dev/null || stat -f '%Lp' "$MCP_FILE" 2>/dev/null)" == 600 ]]; then
+    ok ".cursor/mcp.json is readable only by its owner"
+  else
+    warn ".cursor/mcp.json is readable by other users; run chmod 600 .cursor/mcp.json"
   fi
 else
   warn ".cursor/mcp.json is missing; run scripts/setup.sh"
