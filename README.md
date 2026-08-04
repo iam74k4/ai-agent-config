@@ -67,11 +67,24 @@ flowchart TD
   shared --> copilotdoc[Copilot_repository_instructions]
 ```
 
-- `rules/` is the single source of shared, path-aware rules.
+- `rules/` is the single source of shared, path-aware rules, grouped into category folders (`develop/`, `docs/`) for readability. Folders are organizational only; adapters are named from each rule's `id`.
 - `.cursor/rules/generated/`, `.claude/rules/`, and `.github/instructions/` are generated in full; do not edit them.
 - `AGENTS.md` and `.github/copilot-instructions.md` keep their hand-written sections and have the always-applied rules spliced between their `generated:rules` markers.
 - Edit `rules/`, then run the sync command. `--check` fails when a generated file or section has drifted.
 - Tool-specific MCP instructions stay in `.cursor/rules/mcp/`.
+
+## Skills
+
+`.claude/skills/` holds Claude Code skills — packaged, invokable workflows. Each skill is a directory containing a `SKILL.md`; Claude Code derives the skill name and `/command` from that directory name, so skills live directly under `.claude/skills/` rather than in category subfolders. The category is noted at the top of each `SKILL.md` and in the table below.
+
+| Category | Skill | Purpose |
+|---|---|---|
+| develop | `conventional-commit` | Write a Conventional Commit message for staged changes |
+| develop | `code-review` | Run a structured self-review of pending changes |
+| docs | `readme-scaffold` | Scaffold or refresh a README that follows the README rule |
+| docs | `mermaid-diagram` | Draft a Mermaid diagram to embed in documentation |
+
+To add a skill, create `.claude/skills/<name>/SKILL.md` with `name` and `description` frontmatter, state its category, and add it to the table above.
 
 ## Workspace
 
@@ -84,6 +97,7 @@ The generated workspace includes this repository and every Git repository beside
 - `.cursor/scripts/README.md`: Cursor MCP wrapper scripts
 - `docs/release-policy.md`: release and historical-tag policy
 - `rules/`: common rule sources
+- `.claude/skills/`: Claude Code skills
 
 ## License
 
